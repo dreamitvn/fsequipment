@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+/temp/
+/scraped_news.db
+/videos_data.json
+/final_*.mp4
+/pipeline chuan.txt
+/assets/client_secrets.json
+/assets/youtube_token.json

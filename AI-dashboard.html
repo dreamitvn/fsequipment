@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FS EQUIPMETN Ops Console & Analytics</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            navy: '#0B1528',
+                            navyLight: '#14213d',
+                            navyCard: '#101c36',
+                            red: '#C00000',
+                            redHover: '#a00000',
+                            gold: '#FFD700',
+                            accent: '#2563eb'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #070d18;
+            color: #e2e8f0;
+            font-family: 'Inter', sans-serif;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0B1528;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2563eb;
+            border-radius: 3px;
+        }
+        .glass-panel {
+            background: rgba(16, 28, 54, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .btn-gradient-red {
+            background: linear-gradient(135deg, #C00000 0%, #8b0000 100%);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- TOP NAVIGATION BAR -->
+    <header class="glass-panel sticky top-0 z-40 border-b border-slate-700/50 px-4 lg:px-8 py-3.5 flex items-center justify-between shadow-xl">
+        <div class="flex items-center space-x-3.5">
+            <div class="w-10 h-10 rounded-xl bg-brand-red flex items-center justify-center text-white shadow-lg shadow-red-900/40">
+                <i class="fa-solid fa-play text-lg"></i>
+            </div>
+            <div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs uppercase tracking-widest text-brand-gold font-bold">Tạp chí Điện tử</span>
+                    <span id="liveStatusBadge" class="bg-slate-800 text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-700">OFFLINE CACHE</span>
+                </div>
+                <h1 class="text-lg lg:text-xl font-extrabold tracking-tight text-white flex items-center gap-1.5">
+                    HÒA NHẬP <span class="text-slate-400 font-medium text-sm hidden sm:inline">| Video Ops Console & Analytics</span>
+                </h1>
+            </div>
+        </div>
+
+        <!-- Action tools -->
+        <div class="flex items-center space-x-2 sm:space-x-3">
+            <!-- NÚT QUÉT TIN NÓNG BÁO CHÍ -->
+            <button onclick="openNewsScannerModal()" class="flex items-center space-x-2 px-3.5 py-2 rounded-lg bg-orange-600/90 hover:bg-orange-600 border border-orange-500/50 text-sm font-semibold transition duration-200 text-white shadow-lg shadow-orange-950/40">
+                <i class="fa-solid fa-fire text-amber-300 animate-pulse"></i>
+                <span class="hidden sm:inline">Quét Tin Nóng</span>
+            </button>
+
+            <input type="file" id="jsonFileInput" accept=".json" class="hidden" onchange="handleFileSelect(event)">
+            <button onclick="document.getElementById('jsonFileInput').click()" class="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-indigo-600/80 hover:bg-indigo-600 border border-indigo-500/50 text-sm font-medium transition text-white" title="Nạp file videos_data.json từ ổ cứng">
+                <i class="fa-solid fa-folder-open"></i>
+                <span class="hidden md:inline">Nạp JSON</span>
+            </button>
+            <button id="syncBtn" onclick="triggerSyncBackend()" class="flex items-center space-x-2 px-3.5 py-2 rounded-lg bg-brand-navyLight hover:bg-slate-700/70 border border-slate-600 text-sm font-medium transition duration-200 text-sky-400">
+                <i id="syncIcon" class="fa-solid fa-arrows-rotate"></i>
+                <span class="hidden sm:inline">Đồng bộ Views</span>
+            </button>
+            <button onclick="openAddVideoModal()" class="flex items-center space-x-2 px-4 py-2 rounded-lg btn-gradient-red hover:brightness-110 text-white text-sm font-semibold shadow-lg shadow-red-900/30 transition">
+                <i class="fa-solid fa-plus"></i>
+                <span>Thêm Video</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-7">
+
+        <!-- THÔNG BÁO MỐC THỜI GIAN LỌC HỆ THỐNG MỚI (15/10/2026) -->
+        <div class="bg-blue-950/40 border border-blue-800/60 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs text-blue-300">
+            <span class="flex items-center gap-2">
+                <i class="fa-solid fa-calendar-check text-blue-400"></i>
+                <span>Chế độ lọc dữ liệu: <b>Chỉ hiển thị video từ ngày 15/10/2026 trở lại đây</b> (Đã loại bỏ hệ thống cũ).</span>
+            </span>
+            <span class="bg-blue-900/60 text-blue-200 px-2 py-0.5 rounded text-[11px] font-mono">Cutoff: 2026-10-15</span>
+        </div>
+
+        <!-- 1. STATS / KPI CARDS -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            <!-- Card 1: Total Videos -->
+            <div class="glass-panel p-5 rounded-2xl relative overflow-hidden group hover:border-slate-500/40 transition">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wider text-slate-400">Tổng video mới</p>
+                        <h3 id="statTotalVideos" class="text-3xl font-extrabold text-white mt-1.5">0</h3>
+                        <p class="text-xs text-emerald-400 mt-2 flex items-center font-medium">
+                            <i class="fa-solid fa-circle-check mr-1"></i> Tự động đồng bộ
+                        </p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-film"></i>
+                    </div>
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
+            </div>
+
+            <!-- Card 2: Total Views -->
+            <div class="glass-panel p-5 rounded-2xl relative overflow-hidden group hover:border-slate-500/40 transition">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wider text-slate-400">Tổng Lượt Xem (Views)</p>
+                        <h3 id="statTotalViews" class="text-3xl font-extrabold text-white mt-1.5">0</h3>
+                        <p class="text-xs text-brand-gold mt-2 flex items-center font-medium">
+                            <i class="fa-solid fa-bolt mr-1"></i> 3 Nền tảng video dọc
+                        </p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-brand-gold flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-eye"></i>
+                    </div>
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-yellow-500 to-amber-500"></div>
+            </div>
+
+            <!-- Card 3: Top Channel -->
+            <div class="glass-panel p-5 rounded-2xl relative overflow-hidden group hover:border-slate-500/40 transition">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wider text-slate-400">Kênh dẫn đầu lượt xem</p>
+                        <h3 id="statTopPlatform" class="text-2xl font-black text-white mt-2">Đang tính...</h3>
+                        <p id="statTopPlatformShare" class="text-xs text-sky-400 mt-2 font-medium">
+                            0% lưu lượng
+                        </p>
+                    </div>
+                    <div id="topPlatformIcon" class="w-12 h-12 rounded-xl bg-pink-500/10 border border-pink-500/20 text-pink-400 flex items-center justify-center text-xl">
+                        <i class="fa-brands fa-tiktok"></i>
+                    </div>
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-pink-500 to-red-500"></div>
+            </div>
+
+            <!-- Card 4: Success Rate -->
+            <div class="glass-panel p-5 rounded-2xl relative overflow-hidden group hover:border-slate-500/40 transition">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wider text-slate-400">Đã xuất bản (Published)</p>
+                        <h3 id="statPublishedCount" class="text-3xl font-extrabold text-white mt-1.5">0</h3>
+                        <p class="text-xs text-emerald-400 mt-2 flex items-center font-medium">
+                            <i class="fa-solid fa-cloud-arrow-up mr-1"></i> Có link trực tiếp
+                        </p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-share-nodes"></i>
+                    </div>
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+            </div>
+        </section>
+
+        <!-- 2. ANALYTICS CHARTS -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="glass-panel p-5 rounded-2xl lg:col-span-2 space-y-3">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                        <h2 class="text-base font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-fire text-orange-500"></i> Lượt Xem Theo Chuyên Mục & Chủ Đề
+                        </h2>
+                        <p class="text-xs text-slate-400">Thống kê tổng lượt xem phân bổ theo các chuyên mục tin bài</p>
+                    </div>
+                </div>
+                <div class="relative h-64 w-full">
+                    <canvas id="topicBarChart"></canvas>
+                </div>
+            </div>
+
+            <div class="glass-panel p-5 rounded-2xl space-y-3">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-base font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-chart-pie text-brand-gold"></i> Tỷ phần Nền tảng
+                        </h2>
+                        <p class="text-xs text-slate-400">Tỷ lệ tương tác thực tế</p>
+                    </div>
+                </div>
+                <div class="relative h-52 w-full flex items-center justify-center">
+                    <canvas id="platformPieChart"></canvas>
+                </div>
+                <div class="pt-2 border-t border-slate-700/60 grid grid-cols-3 text-center text-xs">
+                    <div>
+                        <p class="text-slate-400">YouTube</p>
+                        <p id="pieYtText" class="font-bold text-red-400">0%</p>
+                    </div>
+                    <div>
+                        <p class="text-slate-400">TikTok</p>
+                        <p id="pieTtText" class="font-bold text-pink-400">0%</p>
+                    </div>
+                    <div>
+                        <p class="text-slate-400">Facebook</p>
+                        <p id="pieFbText" class="font-bold text-blue-400">0%</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. VIDEO MANAGEMENT TABLE & FILTER BAR -->
+        <section class="glass-panel rounded-2xl p-5 space-y-4">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-brand-red"></i> Danh Sách Video Đã Sản Xuất
+                    </h2>
+                    <p class="text-xs text-slate-400">Bấm vào bất kỳ video nào để xem phát lại hoặc kích hoạt Re-render kịch bản</p>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <button onclick="exportToCSV()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-file-excel text-emerald-400"></i> Xuất Excel (CSV)
+                    </button>
+                    <button onclick="clearStorageData()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-xs font-semibold text-rose-400 border border-slate-700 transition" title="Xóa bộ nhớ đệm cache">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filters Toolbar -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                    <input type="text" id="searchInput" oninput="renderTable()" placeholder="Tìm tiêu đề, từ khóa, kịch bản..." class="w-full pl-9 pr-3 py-2 bg-slate-900/90 border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:border-brand-red transition">
+                </div>
+
+                <div>
+                    <select id="platformFilter" onchange="renderTable()" class="w-full px-3 py-2 bg-slate-900/90 border border-slate-700/80 rounded-xl text-xs text-slate-300 focus:outline-none focus:border-brand-red">
+                        <option value="all">Tất cả Nền tảng (YouTube/TikTok/FB)</option>
+                        <option value="youtube">Có trên YouTube Shorts</option>
+                        <option value="tiktok">Có trên TikTok</option>
+                        <option value="facebook">Có trên Facebook Reels</option>
+                    </select>
+                </div>
+
+                <div>
+                    <select id="categoryFilter" onchange="renderTable()" class="w-full px-3 py-2 bg-slate-900/90 border border-slate-700/80 rounded-xl text-xs text-slate-300 focus:outline-none focus:border-brand-red">
+                        <option value="all">Tất cả Chủ đề / Chuyên mục</option>
+                        <option value="Chính sách">Chính sách & Pháp luật</option>
+                        <option value="Người khuyết tật">Người khuyết tật & Hòa nhập</option>
+                        <option value="Lao động việc làm">Lao động & Việc làm</option>
+                        <option value="Giao thông">Giao thông & Xã hội</option>
+                        <option value="Doanh nghiệp">Doanh nghiệp & Hợp tác</option>
+                    </select>
+                </div>
+
+                <div>
+                    <select id="statusFilter" onchange="renderTable()" class="w-full px-3 py-2 bg-slate-900/90 border border-slate-700/80 rounded-xl text-xs text-slate-300 focus:outline-none focus:border-brand-red">
+                        <option value="all">Tất cả Trạng thái</option>
+                        <option value="published">Đã xuất bản (Published)</option>
+                        <option value="rendered">Đã dựng xong (Rendered)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Table Container -->
+            <div class="overflow-x-auto rounded-xl border border-slate-700/60 mt-3">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead class="bg-brand-navy border-b border-slate-700 text-slate-300 uppercase font-semibold tracking-wider">
+                        <tr>
+                            <th class="py-3 px-3.5 min-w-[280px]">Video / Tiêu đề Banner</th>
+                            <th class="py-3 px-3">Chuyên mục</th>
+                            <th class="py-3 px-3 text-center">Lượt Xem (Views)</th>
+                            <th class="py-3 px-3">Kênh Đăng & Links</th>
+                            <th class="py-3 px-3">Trạng thái</th>
+                            <th class="py-3 px-3">Thời gian</th>
+                            <th class="py-3 px-3 text-right">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="videoTableBody" class="divide-y divide-slate-800 bg-slate-900/40 text-slate-200">
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="emptyNotice" class="hidden py-10 text-center text-slate-400">
+                <i class="fa-solid fa-magnifying-glass text-3xl mb-2 text-slate-500"></i>
+                <p>Không tìm thấy video nào thuộc hệ thống mới (từ 15/10/2026) phù hợp điều kiện tìm kiếm.</p>
+            </div>
+
+            <div class="flex items-center justify-between text-xs text-slate-400 pt-2">
+                <p>Hiển thị <span id="visibleCount" class="font-bold text-white">0</span> / <span id="totalCount" class="font-bold text-white">0</span> video</p>
+                <div class="flex items-center space-x-1">
+                    <span class="px-2 py-1 rounded bg-slate-800 text-slate-400">Trang 1 / 1</span>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="mt-auto border-t border-slate-800 bg-brand-navy py-4 px-4 text-center text-xs text-slate-400">
+        <p class="font-medium">© 2026 Tạp chí Điện tử Hòa Nhập (www.hoanhap.vn) — Hệ thống Quản trị & Sản xuất Video AI Đa Nền Tảng</p>
+        <p class="text-[11px] text-slate-500 mt-1">Đồng bộ tự động cùng Python Automation Pipeline • Hỗ trợ YouTube Shorts, TikTok & Meta Reels</p>
+    </footer>
+
+    <!-- MODAL 1: VIEW DETAILS, STREAM PLAYER & RE-RENDER CONSOLE -->
+    <div id="detailModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl border border-slate-700 flex flex-col max-h-[92vh]">
+            <div class="p-4 bg-brand-navy border-b border-slate-700 flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <span class="w-3 h-3 rounded-full bg-brand-red animate-pulse"></span>
+                    <h3 class="font-bold text-white text-sm" id="detailModalTitle">Studio Xem Trước & Dựng Lại Video (Ops Console)</h3>
+                </div>
+                <button onclick="closeModal('detailModal')" class="text-slate-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- BỐ CỤC 2 CỘT HIỆN ĐẠI -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 p-5 overflow-y-auto max-h-[80vh] text-xs">
+                <!-- Cột trái: Trình phát video trực tiếp -->
+                <div class="space-y-3 flex flex-col items-center">
+                    <div class="bg-black rounded-xl overflow-hidden aspect-[9/16] w-full max-w-[280px] border border-slate-700 shadow-2xl relative flex items-center justify-center">
+                        <video id="dashboardVideoPlayer" controls class="w-full h-full object-contain">
+                            <source src="http://127.0.0.1:8000/api/video/stream/latest" type="video/mp4">
+                            Trình duyệt của bạn không hỗ trợ phát thẻ video.
+                        </video>
+                    </div>
+                    <p class="text-[11px] text-slate-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-mobile-screen text-sky-400"></i> Video dọc tỷ lệ chuẩn 9:16 (1080x1920)
+                    </p>
+                    <div class="w-full grid grid-cols-3 gap-2 text-center pt-2" id="modalStatsGrid"></div>
+                </div>
+
+                <!-- Cột phải: Form biên tập & Re-render -->
+                <div class="space-y-3.5 text-slate-300">
+                    <div>
+                        <label class="font-bold text-brand-gold block mb-1 flex items-center gap-1.5">
+                            <i class="fa-solid fa-heading"></i> Tiêu đề in dải đỏ Banner (Viết hoa):
+                        </label>
+                        <input type="text" id="modalEditTitle" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-bold focus:outline-none focus:border-brand-red">
+                    </div>
+
+                    <div>
+                        <label class="font-bold text-slate-300 block mb-1 flex items-center gap-1.5">
+                            <i class="fa-solid fa-microphone-lines text-brand-red"></i> Lời đọc phát thanh viên (Vbee TTS):
+                        </label>
+                        <textarea id="modalEditVoiceScript" rows="6" class="w-full bg-slate-900 p-3 rounded-xl border border-slate-700 leading-relaxed text-slate-200 font-mono text-[11px] focus:outline-none focus:border-brand-red"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="font-bold text-sky-400 block mb-1 flex items-center gap-1.5">
+                            <i class="fa-brands fa-tiktok"></i> Cập nhật liên kết TikTok (Đăng thủ công):
+                        </label>
+                        <div class="flex gap-2">
+                            <input type="text" id="modalTikTokInput" placeholder="https://www.tiktok.com/@hoanhap.vn/video/..." class="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-brand-red">
+                            <button onclick="saveTikTokLinkFromModal()" class="px-3.5 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold">Lưu Link</button>
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-700/80 flex flex-col gap-2">
+                        <div class="flex items-center justify-between">
+                            <span id="rerenderStatusText" class="text-[11px] text-amber-400 font-medium"></span>
+                            <button onclick="executeRerenderFromDashboard()" class="px-5 py-2.5 rounded-xl btn-gradient-red hover:brightness-110 text-white font-bold shadow-lg shadow-red-900/40 flex items-center gap-2 transition">
+                                <i id="rerenderIcon" class="fa-solid fa-arrows-rotate"></i>
+                                <span>Dựng Lại Video (Re-render)</span>
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-slate-500 italic">Thao tác này sẽ gọi trực tiếp pipeline.py tạo lại âm thanh, phụ đề và render video mới.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-3 bg-brand-navy border-t border-slate-700 flex justify-end space-x-2">
+                <button onclick="closeModal('detailModal')" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold">
+                    Đóng
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL QUÉT TIN TỨC & BÓC TÁCH LÀM VIDEO (RADAR NEWS SCANNER) -->
+    <div id="newsScannerModal" class="fixed inset-0 z-50 hidden bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl border border-slate-700 flex flex-col max-h-[90vh]">
+            <div class="p-4 bg-brand-navy border-b border-slate-700 flex items-center justify-between">
+                <div class="flex items-center space-x-2.5">
+                    <span class="w-3 h-3 rounded-full bg-orange-500 animate-ping"></span>
+                    <h3 class="font-bold text-white text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-newspaper text-brand-gold"></i> Radar Quét Tin Nóng & Bóc Tách Tự Động
+                    </h3>
+                </div>
+                <button onclick="closeModal('newsScannerModal')" class="text-slate-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="p-4 bg-slate-900/60 border-b border-slate-800 flex items-center justify-between text-xs">
+                <span class="text-slate-400">Tự động tổng hợp từ 20+ luồng RSS báo chí chính thống (VnExpress, Dân Trí, Tuổi Trẻ...)</span>
+                <button onclick="fetchScannedNews()" class="px-3 py-1.5 rounded-lg bg-brand-navyLight border border-slate-600 text-sky-400 hover:text-white flex items-center gap-1.5 font-medium transition">
+                    <i id="scanNewsRefreshIcon" class="fa-solid fa-arrows-rotate"></i> Quét lại tin mới
+                </button>
+            </div>
+
+            <div id="scannedNewsList" class="p-5 space-y-3.5 overflow-y-auto max-h-[70vh] text-xs">
+                <div class="text-center py-12 text-slate-400">
+                    <i class="fa-solid fa-satellite-dish text-3xl mb-3 text-orange-400 animate-pulse"></i>
+                    <p>Đang kết nối radar quét luồng báo chí... Vui lòng đợi trong giây lát!</p>
+                </div>
+            </div>
+
+            <div class="p-3 bg-brand-navy border-t border-slate-700 flex justify-end">
+                <button onclick="closeModal('newsScannerModal')" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold">
+                    Đóng
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: EDIT VIEWS / METRICS -->
+    <div id="editViewsModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-md rounded-2xl overflow-hidden shadow-2xl border border-slate-700">
+            <div class="p-4 bg-brand-navy border-b border-slate-700 flex items-center justify-between">
+                <h3 class="font-bold text-white text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-sky-400"></i> Cập Nhật Lượt Xem Thủ Công
+                </h3>
+                <button onclick="closeModal('editViewsModal')" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="editViewsForm" onsubmit="saveEditedViews(event)" class="p-5 space-y-3.5 text-xs">
+                <input type="hidden" id="editVideoId">
+                <p id="editVideoTitle" class="font-bold text-slate-200 text-sm mb-2 border-b border-slate-700 pb-2 truncate"></p>
+
+                <div>
+                    <label class="block text-slate-300 mb-1 font-semibold flex items-center gap-1.5">
+                        <i class="fa-brands fa-youtube text-red-500"></i> YouTube Shorts Views:
+                    </label>
+                    <input type="number" id="editYtViews" min="0" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-red-500 font-mono">
+                </div>
+
+                <div>
+                    <label class="block text-slate-300 mb-1 font-semibold flex items-center gap-1.5">
+                        <i class="fa-brands fa-tiktok text-pink-500"></i> TikTok Views:
+                    </label>
+                    <input type="number" id="editTtViews" min="0" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-pink-500 font-mono">
+                </div>
+
+                <div>
+                    <label class="block text-slate-300 mb-1 font-semibold flex items-center gap-1.5">
+                        <i class="fa-brands fa-facebook text-blue-500"></i> Facebook Reels Views:
+                    </label>
+                    <input type="number" id="editFbViews" min="0" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-blue-500 font-mono">
+                </div>
+
+                <div class="pt-3 flex justify-end space-x-2">
+                    <button type="button" onclick="closeModal('editViewsModal')" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700">Hủy</button>
+                    <button type="submit" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-semibold shadow-lg">Lưu Số Liệu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 3: MANUAL ADD VIDEO -->
+    <div id="addVideoModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl border border-slate-700">
+            <div class="p-4 bg-brand-navy border-b border-slate-700 flex items-center justify-between">
+                <h3 class="font-bold text-white text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-plus-circle text-brand-red"></i> Thêm Bản Ghi Video Mới
+                </h3>
+                <button onclick="closeModal('addVideoModal')" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="addVideoForm" onsubmit="saveNewVideo(event)" class="p-5 space-y-3 text-xs">
+                <div>
+                    <label class="block font-semibold text-slate-300 mb-1">Tiêu đề in banner (Viết hoa toàn bộ):</label>
+                    <input type="text" id="addTitle" required placeholder="VÍ DỤ: BAN HÀNH QUY ĐỊNH MỚI VỀ CHÍNH SÁCH BẢO HIỂM" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-brand-red">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-300 mb-1">Chủ đề:</label>
+                    <select id="addCategory" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white">
+                        <option value="Chính sách">Chính sách & Pháp luật</option>
+                        <option value="Người khuyết tật">Người khuyết tật & Hòa nhập</option>
+                        <option value="Lao động việc làm">Lao động & Việc làm</option>
+                        <option value="Giao thông">Giao thông & Xã hội</option>
+                        <option value="Doanh nghiệp">Doanh nghiệp</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-300 mb-1">Lời đọc Voice-script:</label>
+                    <textarea id="addScript" rows="2" placeholder="Nội dung phát thanh viên đã đọc..." class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white"></textarea>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-300 mb-1">Hashtags:</label>
+                    <input type="text" id="addHashtags" placeholder="#thoisu #hoanhap #tintuc #xuhuong" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white">
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <label class="block text-slate-400 mb-1 text-[11px]">YouTube Views:</label>
+                        <input type="number" id="addYtViews" value="0" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 text-[11px]">TikTok Views:</label>
+                        <input type="number" id="addTtViews" value="0" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 text-[11px]">Facebook Views:</label>
+                        <input type="number" id="addFbViews" value="0" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white font-mono">
+                    </div>
+                </div>
+                <div class="pt-3 flex justify-end space-x-2">
+                    <button type="button" onclick="closeModal('addVideoModal')" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700">Hủy</button>
+                    <button type="submit" class="px-4 py-2 rounded-xl btn-gradient-red text-white font-semibold shadow-lg">Lưu Video</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        const STORAGE_KEY = 'HOANHAP_VIDEOS_STORAGE_V1';
+        const API_BASE_URL = 'http://127.0.0.1:8000';
+
+        // KHÓA CỨNG MỐC THỜI GIAN HỆ THỐNG MỚI: 15/10/2026 00:00:00
+        const CUTOFF_TIMESTAMP = new Date('2026-10-15T00:00:00').getTime();
+
+        let videoData = [];
+        let pieChartInstance = null;
+        let topicChartInstance = null;
+        let currentDetailId = null;
+
+        // Hàm kiểm tra video có thuộc hệ thống mới (từ 15/10/2026) hay không
+        function isNewSystemVideo(v) {
+            if (!v.created_at) return true;
+            const normalizedDate = v.created_at.replace(" ", "T");
+            const vTime = new Date(normalizedDate).getTime();
+            if (isNaN(vTime)) return true;
+            return vTime >= CUTOFF_TIMESTAMP;
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    videoData = Array.isArray(parsed) ? parsed.filter(isNewSystemVideo) : [];
+                } catch (e) {
+                    videoData = [];
+                }
+            }
+            renderTable();
+            initCharts();
+            updateKPIs();
+
+            // Kéo số liệu tự động
+            fetchRealtimeData();
+            setInterval(fetchRealtimeData, 30000);
+        });
+
+        // 1. Kéo dữ liệu từ FastAPI server.py
+        async function fetchRealtimeData() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/videos`);
+                if (res.ok) {
+                    const remoteData = await res.json();
+                    if (Array.isArray(remoteData)) {
+                        videoData = remoteData.filter(isNewSystemVideo);
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(videoData));
+                        renderTable();
+                        updateKPIs();
+                        updateCharts();
+                        setLiveIndicator(true);
+                        return;
+                    }
+                }
+            } catch (err) {
+                setLiveIndicator(false);
+            }
+        }
+
+        // 2. Kích hoạt Backend quét view
+        async function triggerSyncBackend() {
+            const btn = document.getElementById("syncBtn");
+            const icon = document.getElementById("syncIcon");
+
+            icon.classList.add("fa-spin");
+            btn.classList.add("opacity-75");
+
+            try {
+                await fetch(`${API_BASE_URL}/api/sync-realtime`, { method: "POST" });
+                setTimeout(async () => {
+                    await fetchRealtimeData();
+                    icon.classList.remove("fa-spin");
+                    btn.classList.remove("opacity-75");
+                    alert("✅ Đã cập nhật xong dữ liệu từ YouTube, Facebook và TikTok!");
+                }, 4000);
+            } catch (err) {
+                icon.classList.remove("fa-spin");
+                btn.classList.remove("opacity-75");
+                alert("⚠️ Không thể kết nối tới server.py. Vui lòng kiểm tra lại tiến trình máy chủ API.");
+            }
+        }
+
+        function setLiveIndicator(isOnline) {
+            const badge = document.getElementById("liveStatusBadge");
+            if (isOnline) {
+                badge.className = "bg-emerald-950 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-800 animate-pulse";
+                badge.innerText = "REALTIME ACTIVE";
+            } else {
+                badge.className = "bg-slate-800 text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-700";
+                badge.innerText = "OFFLINE CACHE";
+            }
+        }
+
+        // 3. Nạp tệp JSON thủ công
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (Array.isArray(parsed)) {
+                        videoData = parsed.filter(isNewSystemVideo);
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(videoData));
+                        renderTable();
+                        updateKPIs();
+                        updateCharts();
+                        alert(`✅ Đã nạp thành công ${videoData.length} video (từ 15/10/2026) từ tệp ${file.name}!`);
+                    } else {
+                        alert("⚠️ Tệp JSON không đúng định dạng mảng danh sách video.");
+                    }
+                } catch (err) {
+                    alert("❌ Lỗi khi đọc tệp JSON: " + err.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = "";
+        }
+
+        function clearStorageData() {
+            if (confirm("Bạn có chắc chắn muốn làm trống dữ liệu hiển thị hiện tại?")) {
+                videoData = [];
+                localStorage.removeItem(STORAGE_KEY);
+                renderTable();
+                updateKPIs();
+                updateCharts();
+            }
+        }
+
+        // 4. Tính toán và hiển thị KPI
+        function updateKPIs() {
+            const totalVideos = videoData.length;
+            let totalViews = 0;
+            let ytViews = 0, ttViews = 0, fbViews = 0;
+            let publishedCount = 0;
+
+            videoData.forEach(v => {
+                const y = Number(v.views_yt) || 0;
+                const t = Number(v.views_tiktok) || 0;
+                const f = Number(v.views_fb) || 0;
+                ytViews += y;
+                ttViews += t;
+                fbViews += f;
+                totalViews += (y + t + f);
+
+                if (v.yt_link || v.tiktok_link || v.fb_link || v.status === "published") {
+                    publishedCount++;
+                }
+            });
+
+            document.getElementById("statTotalVideos").innerText = totalVideos;
+            document.getElementById("statTotalViews").innerText = totalViews.toLocaleString('vi-VN');
+            document.getElementById("statPublishedCount").innerText = publishedCount;
+
+            let topPlatform = "YouTube Shorts";
+            let topViews = ytViews;
+            let iconHtml = '<i class="fa-brands fa-youtube"></i>';
+
+            if (ttViews > topViews) {
+                topPlatform = "TikTok";
+                topViews = ttViews;
+                iconHtml = '<i class="fa-brands fa-tiktok"></i>';
+            }
+            if (fbViews > topViews) {
+                topPlatform = "Facebook Reels";
+                topViews = fbViews;
+                iconHtml = '<i class="fa-brands fa-facebook"></i>';
+            }
+
+            const share = totalViews > 0 ? ((topViews / totalViews) * 100).toFixed(1) : 0;
+            document.getElementById("statTopPlatform").innerText = topPlatform;
+            document.getElementById("statTopPlatformShare").innerText = `Chiếm ${share}% tổng lưu lượng`;
+            document.getElementById("topPlatformIcon").innerHTML = iconHtml;
+
+            if (totalViews > 0) {
+                document.getElementById("pieYtText").innerText = `${((ytViews / totalViews) * 100).toFixed(1)}%`;
+                document.getElementById("pieTtText").innerText = `${((ttViews / totalViews) * 100).toFixed(1)}%`;
+                document.getElementById("pieFbText").innerText = `${((fbViews / totalViews) * 100).toFixed(1)}%`;
+            } else {
+                document.getElementById("pieYtText").innerText = `0%`;
+                document.getElementById("pieTtText").innerText = `0%`;
+                document.getElementById("pieFbText").innerText = `0%`;
+            }
+        }
+
+        // 5. Hiển thị bảng CMS
+        function renderTable() {
+            const tbody = document.getElementById("videoTableBody");
+            const searchVal = document.getElementById("searchInput").value.toLowerCase().trim();
+            const platformVal = document.getElementById("platformFilter").value;
+            const categoryVal = document.getElementById("categoryFilter").value;
+            const statusVal = document.getElementById("statusFilter").value;
+
+            tbody.innerHTML = "";
+
+            const filtered = videoData.filter(v => {
+                const titleStr = (v.title || "").toLowerCase();
+                const scriptStr = (v.voice_script || "").toLowerCase();
+                const hashStr = (v.hashtags || "").toLowerCase();
+
+                const matchSearch = titleStr.includes(searchVal) || scriptStr.includes(searchVal) || hashStr.includes(searchVal);
+
+                let matchPlatform = true;
+                if (platformVal === "youtube") matchPlatform = !!v.yt_link;
+                if (platformVal === "tiktok") matchPlatform = !!v.tiktok_link;
+                if (platformVal === "facebook") matchPlatform = !!v.fb_link;
+
+                let matchCat = categoryVal === "all" || (v.category || "Chính sách") === categoryVal;
+                let matchStatus = statusVal === "all" || (v.status || "rendered").toLowerCase() === statusVal.toLowerCase();
+
+                return matchSearch && matchPlatform && matchCat && matchStatus;
+            });
+
+            document.getElementById("visibleCount").innerText = filtered.length;
+            document.getElementById("totalCount").innerText = videoData.length;
+
+            if (filtered.length === 0) {
+                document.getElementById("emptyNotice").classList.remove("hidden");
+            } else {
+                document.getElementById("emptyNotice").classList.add("hidden");
+            }
+
+            filtered.forEach(v => {
+                const y = Number(v.views_yt) || 0;
+                const t = Number(v.views_tiktok) || 0;
+                const f = Number(v.views_fb) || 0;
+                const totalV = y + t + f;
+
+                const statusStr = (v.status || "rendered").toLowerCase();
+                let statusBadge = '';
+                if (statusStr === 'published' || v.yt_link || v.tiktok_link || v.fb_link) {
+                    statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800">Đã xuất bản</span>';
+                } else {
+                    statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-950 text-amber-400 border border-amber-800">Đã dựng xong</span>';
+                }
+
+                const tr = document.createElement("tr");
+                tr.className = "hover:bg-slate-800/40 transition";
+                tr.innerHTML = `
+                    <td class="py-3 px-3.5">
+                        <div class="flex items-start space-x-2.5 max-w-sm">
+                            <div class="w-10 h-10 rounded-lg bg-red-950/80 border border-brand-red flex-shrink-0 flex items-center justify-center text-brand-gold font-black text-xs shadow cursor-pointer hover:scale-105 transition" onclick="openDetailModal('${v.id}')" title="Bấm để mở trình phát">
+                                <i class="fa-solid fa-play"></i>
+                            </div>
+                            <div>
+                                <p class="font-bold text-white leading-snug hover:text-brand-gold cursor-pointer" onclick="openDetailModal('${v.id}')">${v.title || 'Video chưa đặt tên'}</p>
+                                <span class="text-[10px] text-slate-400 truncate max-w-[260px] block mt-0.5">
+                                    ${v.voice_script || 'Không có kịch bản thoại'}
+                                </span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="py-3 px-3">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-sky-300 border border-slate-700 block w-max">${v.category || "Chính sách"}</span>
+                    </td>
+                    <td class="py-3 px-3 text-center">
+                        <div class="font-bold text-white text-xs">${totalV.toLocaleString('vi-VN')} views</div>
+                        <div class="flex items-center justify-center space-x-2 text-[10px] text-slate-400 mt-1">
+                            <span class="text-rose-400" title="YouTube"><i class="fa-brands fa-youtube"></i> ${y.toLocaleString('vi-VN')}</span>
+                            <span class="text-pink-400" title="TikTok"><i class="fa-brands fa-tiktok"></i> ${t.toLocaleString('vi-VN')}</span>
+                            <span class="text-blue-400" title="Facebook"><i class="fa-brands fa-facebook"></i> ${f.toLocaleString('vi-VN')}</span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-3">
+                        <div class="flex items-center space-x-2">
+                            ${v.yt_link ? `<a href="${v.yt_link}" target="_blank" class="w-6 h-6 rounded bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white flex items-center justify-center text-xs transition" title="Xem YouTube Shorts"><i class="fa-brands fa-youtube"></i></a>` : `<span class="w-6 h-6 rounded bg-slate-800 text-slate-600 flex items-center justify-center text-xs"><i class="fa-brands fa-youtube"></i></span>`}
+                            ${v.tiktok_link ? `<a href="${v.tiktok_link}" target="_blank" class="w-6 h-6 rounded bg-pink-500/20 text-pink-400 hover:bg-pink-500 hover:text-white flex items-center justify-center text-xs transition" title="Xem TikTok"><i class="fa-brands fa-tiktok"></i></a>` : `<button onclick="openDetailModal('${v.id}')" class="w-6 h-6 rounded border border-dashed border-slate-700 text-slate-500 hover:text-pink-400 flex items-center justify-center text-xs" title="Gán link TikTok"><i class="fa-brands fa-tiktok"></i></button>`}
+                            ${v.fb_link ? `<a href="${v.fb_link}" target="_blank" class="w-6 h-6 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white flex items-center justify-center text-xs transition" title="Xem Facebook Reels"><i class="fa-brands fa-facebook"></i></a>` : `<span class="w-6 h-6 rounded bg-slate-800 text-slate-600 flex items-center justify-center text-xs"><i class="fa-brands fa-facebook"></i></span>`}
+                        </div>
+                    </td>
+                    <td class="py-3 px-3">${statusBadge}</td>
+                    <td class="py-3 px-3 text-[11px] text-slate-400 whitespace-nowrap">${v.created_at || 'Mới đây'}</td>
+                    <td class="py-3 px-3 text-right">
+                        <div class="flex items-center justify-end space-x-1">
+                            <button onclick="openDetailModal('${v.id}')" class="p-1.5 rounded hover:bg-slate-700 text-slate-300 hover:text-white text-xs" title="Xem kịch bản, phát video & Re-render">
+                                <i class="fa-solid fa-sliders"></i>
+                            </button>
+                            <button onclick="openEditViewsModal('${v.id}')" class="p-1.5 rounded hover:bg-slate-700 text-sky-400 hover:text-sky-300 text-xs" title="Chỉnh sửa lượt xem">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button onclick="deleteVideo('${v.id}')" class="p-1.5 rounded hover:bg-slate-700 text-red-400 hover:text-red-300 text-xs" title="Xóa">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 6. Khởi tạo và cập nhật biểu đồ Chart.js
+        function initCharts() {
+            const ctxPie = document.getElementById('platformPieChart').getContext('2d');
+            pieChartInstance = new Chart(ctxPie, {
+                type: 'doughnut',
+                data: {
+                    labels: ['YouTube', 'TikTok', 'Facebook'],
+                    datasets: [{
+                        data: [1, 1, 1],
+                        backgroundColor: ['#ef4444', '#ec4899', '#3b82f6'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '72%',
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            const ctxTopic = document.getElementById('topicBarChart').getContext('2d');
+            topicChartInstance = new Chart(ctxTopic, {
+                type: 'bar',
+                data: {
+                    labels: ['Chính sách', 'Người khuyết tật', 'Lao động việc làm', 'Giao thông', 'Doanh nghiệp'],
+                    datasets: [{
+                        label: 'Lượt xem',
+                        data: [0, 0, 0, 0, 0],
+                        backgroundColor: [
+                            'rgba(192, 0, 0, 0.85)',
+                            'rgba(37, 99, 235, 0.85)',
+                            'rgba(245, 158, 11, 0.85)',
+                            'rgba(16, 185, 129, 0.85)',
+                            'rgba(147, 51, 234, 0.85)'
+                        ],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#cbd5e1', font: { size: 10 } } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', font: { size: 10 } } }
+                    }
+                }
+            });
+
+            updateCharts();
+        }
+
+        function updateCharts() {
+            let yt = 0, tt = 0, fb = 0;
+            const catMap = {
+                'Chính sách': 0,
+                'Người khuyết tật': 0,
+                'Lao động việc làm': 0,
+                'Giao thông': 0,
+                'Doanh nghiệp': 0
+            };
+
+            videoData.forEach(v => {
+                const y = Number(v.views_yt) || 0;
+                const t = Number(v.views_tiktok) || 0;
+                const f = Number(v.views_fb) || 0;
+                yt += y;
+                tt += t;
+                fb += f;
+
+                const cat = v.category || 'Chính sách';
+                if (catMap[cat] !== undefined) {
+                    catMap[cat] += (y + t + f);
+                } else {
+                    catMap['Chính sách'] += (y + t + f);
+                }
+            });
+
+            if (pieChartInstance) {
+                pieChartInstance.data.datasets[0].data = [yt || 1, tt || 1, fb || 1];
+                pieChartInstance.update();
+            }
+
+            if (topicChartInstance) {
+                topicChartInstance.data.datasets[0].data = Object.values(catMap);
+                topicChartInstance.update();
+            }
+        }
+
+        // 7. Xử lý Studio Xem trước & Re-render
+        function openDetailModal(id) {
+            const v = videoData.find(item => String(item.id) === String(id));
+            if (!v) return;
+
+            currentDetailId = id;
+            document.getElementById("modalEditTitle").value = v.title || '';
+            document.getElementById("modalEditVoiceScript").value = v.voice_script || '';
+            document.getElementById("modalTikTokInput").value = v.tiktok_link || '';
+            document.getElementById("rerenderStatusText").innerText = '';
+
+            const player = document.getElementById("dashboardVideoPlayer");
+            player.src = `${API_BASE_URL}/api/video/stream/${v.id}?t=${Date.now()}`;
+            player.load();
+
+            const y = Number(v.views_yt) || 0;
+            const t = Number(v.views_tiktok) || 0;
+            const f = Number(v.views_fb) || 0;
+
+            document.getElementById("modalStatsGrid").innerHTML = `
+                <div class="bg-red-950/40 border border-red-900/50 p-2 rounded-lg">
+                    <p class="text-red-400 font-bold"><i class="fa-brands fa-youtube"></i> YouTube</p>
+                    <p class="text-xs font-extrabold text-white mt-0.5">${y.toLocaleString('vi-VN')}</p>
+                </div>
+                <div class="bg-pink-950/40 border border-pink-900/50 p-2 rounded-lg">
+                    <p class="text-pink-400 font-bold"><i class="fa-brands fa-tiktok"></i> TikTok</p>
+                    <p class="text-xs font-extrabold text-white mt-0.5">${t.toLocaleString('vi-VN')}</p>
+                </div>
+                <div class="bg-blue-950/40 border border-blue-900/50 p-2 rounded-lg">
+                    <p class="text-blue-400 font-bold"><i class="fa-brands fa-facebook"></i> Facebook</p>
+                    <p class="text-xs font-extrabold text-white mt-0.5">${f.toLocaleString('vi-VN')}</p>
+                </div>
+            `;
+
+            document.getElementById("detailModal").classList.remove("hidden");
+        }
+
+        async function executeRerenderFromDashboard() {
+            if (!currentDetailId) return;
+
+            const title = document.getElementById("modalEditTitle").value.trim();
+            const voice_script = document.getElementById("modalEditVoiceScript").value.trim();
+            const statusText = document.getElementById("rerenderStatusText");
+            const icon = document.getElementById("rerenderIcon");
+
+            if (!title || !voice_script) {
+                alert("Vui lòng điền đủ tiêu đề và nội dung thoại!");
+                return;
+            }
+
+            statusText.innerText = "⏳ Đang gửi yêu cầu tạo video trong nền...";
+            icon.classList.add("fa-spin");
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/video/rerender`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        video_id: currentDetailId,
+                        title: title,
+                        voice_script: voice_script
+                    })
+                });
+
+                if (res.ok) {
+                    statusText.innerText = "🚀 Đang xử lý FFmpeg & Vbee (Khoảng 35-45s)...";
+                    setTimeout(() => {
+                        statusText.innerText = "✅ Đã dựng xong video mới!";
+                        icon.classList.remove("fa-spin");
+                        const player = document.getElementById("dashboardVideoPlayer");
+                        player.src = `${API_BASE_URL}/api/video/stream/${currentDetailId}?t=${Date.now()}`;
+                        player.load();
+                        fetchRealtimeData();
+                    }, 40000);
+                } else {
+                    statusText.innerText = "❌ Không thể gửi yêu cầu dựng.";
+                    icon.classList.remove("fa-spin");
+                }
+            } catch (e) {
+                statusText.innerText = "❌ Lỗi kết nối tới server.py.";
+                icon.classList.remove("fa-spin");
+            }
+        }
+
+        function saveTikTokLinkFromModal() {
+            if (!currentDetailId) return;
+            const link = document.getElementById("modalTikTokInput").value.trim();
+            const v = videoData.find(item => String(item.id) === String(currentDetailId));
+            if (v) {
+                v.tiktok_link = link;
+                if (link) v.status = "published";
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(videoData));
+                renderTable();
+                updateKPIs();
+                alert("✅ Đã cập nhật liên kết TikTok thành công!");
+            }
+        }
+
+        // 8. Xử lý Radar Quét Tin Nóng & Bóc Tách Làm Video
+        function openNewsScannerModal() {
+            document.getElementById("newsScannerModal").classList.remove("hidden");
+            fetchScannedNews();
+        }
+
+        async function fetchScannedNews() {
+            const container = document.getElementById("scannedNewsList");
+            const refreshIcon = document.getElementById("scanNewsRefreshIcon");
+            if (refreshIcon) refreshIcon.classList.add("fa-spin");
+
+            container.innerHTML = `
+                <div class="text-center py-12 text-slate-400">
+                    <i class="fa-solid fa-satellite-dish text-3xl mb-3 text-orange-400 animate-pulse"></i>
+                    <p>Đang quét song song 20+ nguồn báo chí & phân tích từ khóa...</p>
+                </div>
+            `;
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/news/scan`);
+                if (res.ok) {
+                    const newsItems = await res.json();
+                    if (refreshIcon) refreshIcon.classList.remove("fa-spin");
+
+                    if (!Array.isArray(newsItems) || newsItems.length === 0) {
+                        container.innerHTML = `
+                            <div class="text-center py-10 text-slate-400">
+                                <i class="fa-solid fa-circle-check text-2xl text-emerald-400 mb-2"></i>
+                                <p>Tất cả các tin thời sự tiêu điểm đều đã được quét trước đó hoặc chưa có tin mới.</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    container.innerHTML = "";
+                    newsItems.forEach(item => {
+                        const tagClass = item.is_hot ? "bg-red-950/80 text-rose-300 border-red-800" : "bg-blue-950/80 text-sky-300 border-blue-800";
+                        const tagText = item.is_hot ? "🚨 TIN NÓNG" : "📌 THỜI SỰ";
+
+                        const card = document.createElement("div");
+                        card.className = "p-4 rounded-xl bg-slate-900/90 border border-slate-700/80 hover:border-slate-500 transition flex flex-col md:flex-row md:items-center justify-between gap-3";
+                        card.innerHTML = `
+                            <div class="space-y-1.5 flex-1 pr-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${tagClass}">${tagText}</span>
+                                    <span class="text-[11px] text-slate-400 font-semibold">${item.source}</span>
+                                </div>
+                                <h4 class="font-bold text-white text-sm leading-snug hover:text-brand-gold cursor-pointer" onclick="window.open('${item.link}', '_blank')">
+                                    ${item.title}
+                                </h4>
+                                <p class="text-[11px] text-slate-400 line-clamp-2">${item.summary}</p>
+                            </div>
+                            <div class="flex items-center gap-2 flex-shrink-0">
+                                <a href="${item.link}" target="_blank" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs flex items-center gap-1.5 transition">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Đọc báo
+                                </a>
+                                <button onclick="triggerCreateVideoFromUrl('${item.link}', this)" class="px-4 py-2 rounded-xl btn-gradient-red hover:brightness-110 text-white font-bold text-xs shadow-lg shadow-red-900/40 flex items-center gap-2 transition">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i> Bóc tách & Làm video
+                                </button>
+                            </div>
+                        `;
+                        container.appendChild(card);
+                    });
+                }
+            } catch (err) {
+                if (refreshIcon) refreshIcon.classList.remove("fa-spin");
+                container.innerHTML = `<p class="text-center py-8 text-rose-400">❌ Không thể kết nối tới máy chủ quét tin. Hãy đảm bảo server.py đang chạy.</p>`;
+            }
+        }
+
+        async function triggerCreateVideoFromUrl(url, btnElement) {
+            btnElement.disabled = true;
+            btnElement.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang dựng...`;
+            btnElement.classList.add("opacity-70");
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/news/create-video`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ url: url })
+                });
+
+                if (res.ok) {
+                    alert("🚀 Đã tiếp nhận yêu cầu! Hệ thống đang tự động bóc tách tin tức, tạo giọng đọc Vbee và dựng video trong nền (35-50s). Bảng danh sách video sẽ tự cập nhật khi hoàn thành.");
+                    closeModal('newsScannerModal');
+                    setTimeout(fetchRealtimeData, 40000);
+                } else {
+                    alert("❌ Lỗi khi gửi yêu cầu dựng video.");
+                    btnElement.disabled = false;
+                    btnElement.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> Bóc tách & Làm video`;
+                }
+            } catch (e) {
+                alert("❌ Lỗi kết nối máy chủ API.");
+                btnElement.disabled = false;
+                btnElement.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> Bóc tách & Làm video`;
+            }
+        }
+
+        function openEditViewsModal(id) {
+            const v = videoData.find(item => String(item.id) === String(id));
+            if (!v) return;
+
+            document.getElementById("editVideoId").value = v.id;
+            document.getElementById("editVideoTitle").innerText = v.title || '';
+            document.getElementById("editYtViews").value = v.views_yt || 0;
+            document.getElementById("editTtViews").value = v.views_tiktok || 0;
+            document.getElementById("editFbViews").value = v.views_fb || 0;
+
+            document.getElementById("editViewsModal").classList.remove("hidden");
+        }
+
+        function saveEditedViews(e) {
+            e.preventDefault();
+            const id = document.getElementById("editVideoId").value;
+            const v = videoData.find(item => String(item.id) === String(id));
+            if (v) {
+                v.views_yt = parseInt(document.getElementById("editYtViews").value) || 0;
+                v.views_tiktok = parseInt(document.getElementById("editTtViews").value) || 0;
+                v.views_fb = parseInt(document.getElementById("editFbViews").value) || 0;
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(videoData));
+                renderTable();
+                updateKPIs();
+                updateCharts();
+            }
+            closeModal('editViewsModal');
+        }
+
+        function openAddVideoModal() {
+            document.getElementById("addVideoForm").reset();
+            document.getElementById("addVideoModal").classList.remove("hidden");
+        }
+
+        function saveNewVideo(e) {
+            e.preventDefault();
+            const title = document.getElementById("addTitle").value.toUpperCase().trim();
+            const category = document.getElementById("addCategory").value;
+            const script = document.getElementById("addScript").value || "Nội dung đang cập nhật...";
+            const hashtags = document.getElementById("addHashtags").value || "#hoanhap #tintuc";
+            const yt = parseInt(document.getElementById("addYtViews").value) || 0;
+            const tt = parseInt(document.getElementById("addTtViews").value) || 0;
+            const fb = parseInt(document.getElementById("addFbViews").value) || 0;
+
+            const now = new Date();
+            const dateStr = now.toISOString().slice(0, 16).replace('T', ' ');
+
+            videoData.unshift({
+                id: `HN-${Date.now()}`,
+                title: title,
+                category: category,
+                voice_script: script,
+                caption: script.slice(0, 150),
+                hashtags: hashtags,
+                status: "published",
+                yt_link: "",
+                tiktok_link: "",
+                fb_link: "",
+                views_yt: yt,
+                views_tiktok: tt,
+                views_fb: fb,
+                created_at: dateStr
+            });
+
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(videoData));
+            renderTable();
+            updateKPIs();
+            updateCharts();
+            closeModal('addVideoModal');
+        }
+
+        function deleteVideo(id) {
+            const v = videoData.find(item => String(item.id) === String(id));
+            if (!v) return;
+            if (confirm(`Bạn có chắc chắn muốn xóa video: "${v.title}"?`)) {
+                videoData = videoData.filter(item => String(item.id) !== String(id));
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(videoData));
+                renderTable();
+                updateKPIs();
+                updateCharts();
+            }
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add("hidden");
+        }
+
+        // 9. Xuất báo cáo CSV chuẩn tiếng Việt (BOM)
+        function exportToCSV() {
+            let csvContent = "\uFEFF";
+            csvContent += "ID,Tiêu đề,Chuyên mục,YouTube Views,TikTok Views,Facebook Views,Tổng Views,Trạng thái,Thời gian\n";
+
+            videoData.forEach(v => {
+                const y = Number(v.views_yt) || 0;
+                const t = Number(v.views_tiktok) || 0;
+                const f = Number(v.views_fb) || 0;
+                const totalV = y + t + f;
+                const safeTitle = `"${(v.title || '').replace(/"/g, '""')}"`;
+                csvContent += `${v.id},${safeTitle},${v.category || 'Chính sách'},${y},${t},${f},${totalV},${v.status || 'rendered'},${v.created_at || ''}\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", `Bao_cao_video_Hoanhap_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>

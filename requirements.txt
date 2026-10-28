@@ -1,0 +1,16 @@
+requests
+beautifulsoup4
+Pillow
+python-dotenv
+google-genai
+edge-tts
+faster-whisper
+python-docx
+python-telegram-bot
+feedparser
+schedule
+fastapi
+uvicorn[standard]
+google-auth-oauthlib
+google-api-python-client
+yt-dlp
